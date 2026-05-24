@@ -24,6 +24,8 @@ import { queryClient } from '../src/lib/queryClient';
 import { setTokenProvider } from '../src/services/api';
 import { useNotificationSetup } from '../src/hooks/useNotifications';
 import '../src/utils/notifications'; // Initialize notification handler
+// IMPORTANT: Background task must be defined at module level before any rendering
+import '../src/tasks/backgroundNotificationTask';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -74,7 +76,7 @@ function AppContent() {
     }
   }, [isSignedIn, user]);
 
-  // Set up notifications
+  // Set up notifications + register background task
   useNotificationSetup();
 
   return (

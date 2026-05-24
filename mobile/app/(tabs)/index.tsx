@@ -1,4 +1,3 @@
-// app/(tabs)/index.tsx
 import React, { useCallback } from 'react';
 import { Feather, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import {
@@ -38,6 +37,7 @@ import { Typography } from '../../src/theme/typography';
 import { Shadows } from '../../src/theme/shadows';
 import { getGreeting, isReminderActiveOnDate } from '../../src/utils/dateHelpers';
 import { requestNotificationPermissions } from '../../src/utils/notifications';
+import { requestIgnoreBatteryOptimizations } from '../../src/utils/powerManager';
 import {
   useReminders,
   useTodayReminders,
@@ -96,25 +96,38 @@ export default function DashboardScreen() {
   const { data: history = [] } = useHistory();
   const reminders = useReminderStore((s) => s.reminders);
 
+  // Show battery warning banner only for users who skipped the initial prompt
+  const [batteryWarningVisible, setBatteryWarningVisible] = React.useState(false);
+
   React.useEffect(() => {
     const checkAndRequestPermissions = async () => {
       try {
         const hasAsked = await AsyncStorage.getItem('hasAskedPermissionsDashboard');
+        const batteryDenied = await AsyncStorage.getItem('batteryOptimizationDenied');
+
+        // Show warning banner if user previously clicked 'Later'
+        if (batteryDenied === 'true' && Platform.OS === 'android') {
+          setBatteryWarningVisible(true);
+        }
+
         if (hasAsked === 'true') return;
 
         // 1. Request notification permissions first
         await requestNotificationPermissions();
 
-        // 2. On Android, ask for battery exemption settings so notifications run on-time
+        // 2. On Android, ask for battery exemption so reminders work reliably
         if (Platform.OS === 'android') {
           Alert.alert(
             "🔔 Enable Reliable Reminders",
-            "To make sure you never miss your medicine reminders (even when your phone is locked or asleep), PillMaa needs permission to run in the background without battery restrictions.\n\nWe will open settings for you. Please tap 'Battery' and select 'Unrestricted' (or 'Don't Optimize').",
+            "To make sure you never miss your medicine reminders (even when your phone is locked or asleep), PillMaa needs to run in the background without battery restrictions.\n\nPlease tap 'Battery' → select 'Unrestricted'.",
             [
               {
                 text: "Later",
                 onPress: async () => {
                   await AsyncStorage.setItem('hasAskedPermissionsDashboard', 'true');
+                  // Track that user denied — so we show the banner
+                  await AsyncStorage.setItem('batteryOptimizationDenied', 'true');
+                  setBatteryWarningVisible(true);
                 },
                 style: "cancel"
               },
@@ -122,12 +135,14 @@ export default function DashboardScreen() {
                 text: "Open Settings",
                 onPress: async () => {
                   await AsyncStorage.setItem('hasAskedPermissionsDashboard', 'true');
-                  const { requestIgnoreBatteryOptimizations } = require('../../src/utils/powerManager');
+                  // Track that user accepted — banner stays hidden
+                  await AsyncStorage.setItem('batteryOptimizationDenied', 'false');
+                  setBatteryWarningVisible(false);
                   await requestIgnoreBatteryOptimizations();
                 }
               }
             ],
-            { cancelable: true }
+            { cancelable: false }
           );
         } else {
           await AsyncStorage.setItem('hasAskedPermissionsDashboard', 'true');
@@ -411,6 +426,32 @@ export default function DashboardScreen() {
             </View>
             <Feather name="calendar" size={20} color={theme.textMuted} />
           </Animated.View>
+
+          {/* ─── Battery Warning Banner (only shown if user skipped initially) ── */}
+          {batteryWarningVisible && Platform.OS === 'android' && (
+            <Animated.View entering={FadeInDown.delay(150)} style={styles.batteryWarningBanner}>
+              <View style={styles.batteryWarningLeft}>
+                <View style={styles.batteryWarningIconBox}>
+                  <Ionicons name="battery-half-outline" size={20} color="#b45309" />
+                </View>
+                <View style={styles.batteryWarningText}>
+                  <Text style={styles.batteryWarningTitle}>Reminders may be delayed</Text>
+                  <Text style={styles.batteryWarningSubtext}>Set battery to Unrestricted for on-time alerts</Text>
+                </View>
+              </View>
+              <TouchableOpacity
+                style={styles.batteryWarningBtn}
+                onPress={async () => {
+                  await AsyncStorage.setItem('batteryOptimizationDenied', 'false');
+                  setBatteryWarningVisible(false);
+                  await requestIgnoreBatteryOptimizations();
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.batteryWarningBtnText}>Fix Now</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
 
           {/* ─── Today's Medicines ────────────────────────────── */}
           <View style={styles.section}>
@@ -885,6 +926,63 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.semibold,
     fontSize: 10,
     color: '#2563eb',
+  },
+
+  // Battery Warning Banner
+  batteryWarningBanner: {
+    marginHorizontal: 20,
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 14,
+    backgroundColor: '#fffbeb',
+    borderWidth: 1.5,
+    borderColor: '#fcd34d',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    ...Shadows.sm,
+  },
+  batteryWarningLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  batteryWarningIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#fef3c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+  },
+  batteryWarningText: {
+    flex: 1,
+    gap: 2,
+  },
+  batteryWarningTitle: {
+    fontFamily: Typography.fontFamily.semibold,
+    fontSize: 13,
+    color: '#92400e',
+  },
+  batteryWarningSubtext: {
+    fontFamily: Typography.fontFamily.regular,
+    fontSize: 11,
+    color: '#b45309',
+  },
+  batteryWarningBtn: {
+    backgroundColor: '#f59e0b',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+  },
+  batteryWarningBtnText: {
+    fontFamily: Typography.fontFamily.bold,
+    fontSize: 12,
+    color: '#fff',
   },
 
   // FAB

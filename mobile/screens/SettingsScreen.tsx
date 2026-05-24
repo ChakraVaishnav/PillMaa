@@ -1,5 +1,5 @@
 // screens/SettingsScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,18 +10,21 @@ import {
   Modal,
   Alert,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useUser, useAuth } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../src/context/ThemeContext';
 import { useTabBar } from '../src/context/TabBarContext';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { AuthService } from '../src/services/auth.service';
 import { cancelAllNotifications } from '../src/utils/notifications';
+import { requestIgnoreBatteryOptimizations } from '../src/utils/powerManager';
 import { useReminderStore } from '../src/store/useReminderStore';
 import { Typography } from '../src/theme/typography';
 import { Shadows } from '../src/theme/shadows';
@@ -39,6 +42,17 @@ export const SettingsScreen: React.FC = () => {
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteInputText, setDeleteInputText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Battery optimization warning state
+  const [batteryDenied, setBatteryDenied] = useState(false);
+
+  useEffect(() => {
+    const checkBattery = async () => {
+      const denied = await AsyncStorage.getItem('batteryOptimizationDenied');
+      setBatteryDenied(denied === 'true');
+    };
+    checkBattery();
+  }, []);
 
   // User values
   const firstName = user?.firstName || '';
@@ -168,6 +182,46 @@ export const SettingsScreen: React.FC = () => {
             <Feather name="chevron-right" size={18} color={theme.textMuted} />
           </TouchableOpacity>
         </Card>
+
+        {/* Settings Group: Notifications */}
+        {Platform.OS === 'android' && (
+          <>
+            <Text style={[styles.groupLabel, { color: theme.textMuted }]}>Notifications</Text>
+            <Card style={{ ...styles.groupCard, backgroundColor: theme.card, borderColor: batteryDenied ? '#fcd34d' : theme.border }} padding={0}>
+              <TouchableOpacity
+                style={styles.settingRow}
+                onPress={async () => {
+                  await requestIgnoreBatteryOptimizations();
+                  await AsyncStorage.setItem('batteryOptimizationDenied', 'false');
+                  setBatteryDenied(false);
+                  Toast.show({
+                    type: 'success',
+                    text1: 'Battery Settings Opened',
+                    text2: "Set PillMaa to 'Unrestricted' for reliable reminders.",
+                  });
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.rowLeft}>
+                  <View style={[styles.iconBox, { backgroundColor: batteryDenied ? '#fef3c7' : theme.primaryLight }]}>
+                    <Ionicons
+                      name="battery-half-outline"
+                      size={18}
+                      color={batteryDenied ? '#b45309' : theme.primary}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.rowLabel, { color: theme.text }]}>Battery Optimization</Text>
+                    <Text style={[styles.rowSubLabel, { color: batteryDenied ? '#b45309' : theme.textMuted }]}>
+                      {batteryDenied ? '⚠️ Not set — tap to fix' : 'Set to Unrestricted for reliable alerts'}
+                    </Text>
+                  </View>
+                </View>
+                <Feather name="chevron-right" size={18} color={batteryDenied ? '#f59e0b' : theme.textMuted} />
+              </TouchableOpacity>
+            </Card>
+          </>
+        )}
 
         {/* Settings Group: Customization */}
         <Text style={[styles.groupLabel, { color: theme.textMuted }]}>Appearance</Text>
@@ -354,6 +408,11 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontFamily: Typography.fontFamily.medium,
     fontSize: 15,
+  },
+  rowSubLabel: {
+    fontFamily: Typography.fontFamily.regular,
+    fontSize: 11,
+    marginTop: 1,
   },
   logoutButton: {
     borderWidth: 1.5,

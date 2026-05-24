@@ -116,6 +116,8 @@ export async function scheduleReminderNotification(
       priority: Notifications.AndroidNotificationPriority.MAX,
       ...(Platform.OS === 'android' && {
         channelId: NOTIFICATION_CHANNEL_ID,
+        // Makes the alarm show as a full-screen overlay even when on another app
+        // Requires USE_FULL_SCREEN_INTENT permission (already in app.json)
       }),
     },
     trigger,
