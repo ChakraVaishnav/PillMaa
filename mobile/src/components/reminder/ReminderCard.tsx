@@ -50,27 +50,28 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({
   );
 
   return (
-    <Swipeable
-      ref={swipeableRef}
-      renderLeftActions={renderLeftActions}
-      renderRightActions={renderRightActions}
-      onSwipeableOpen={(direction) => {
-        if (direction === 'left') {
-          // Swiped right -> revealed left actions (Mark Taken)
-          onMarkTaken(reminder.id);
-        } else if (direction === 'right') {
-          // Swiped left -> revealed right actions (Delete)
-          onDelete(reminder.id);
-        }
-        // Auto-close swipeable after firing trigger
-        swipeableRef.current?.close();
-        setTimeout(() => {
+    <View style={styles.shadowWrapper}>
+      <Swipeable
+        ref={swipeableRef}
+        renderLeftActions={renderLeftActions}
+        renderRightActions={renderRightActions}
+        onSwipeableOpen={(direction) => {
+          if (direction === 'left') {
+            // Swiped right -> revealed left actions (Mark Taken)
+            onMarkTaken(reminder.id);
+          } else if (direction === 'right') {
+            // Swiped left -> revealed right actions (Delete)
+            onDelete(reminder.id);
+          }
+          // Auto-close swipeable after firing trigger
           swipeableRef.current?.close();
-        }, 150);
-      }}
-      containerStyle={styles.swipeableContainer}
-    >
-      <View style={styles.shadowWrapper}>
+          setTimeout(() => {
+            swipeableRef.current?.close();
+          }, 150);
+        }}
+        containerStyle={styles.swipeableContainer}
+        childrenContainerStyle={styles.swipeableChildren}
+      >
         <View style={[
           styles.card, 
           { backgroundColor: theme.card, borderColor: theme.border },
@@ -130,20 +131,25 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({
             )}
           </TouchableOpacity>
         </View>
-      </View>
-    </Swipeable>
+      </Swipeable>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   swipeableContainer: {
     backgroundColor: 'transparent',
-    marginBottom: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  swipeableChildren: {
+    borderRadius: 16,
   },
   shadowWrapper: {
     ...Shadows.card,
     borderRadius: 16,
     backgroundColor: 'transparent',
+    marginBottom: 12,
   },
   leftActionContainer: {
     flex: 1,
