@@ -1,0 +1,81 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum RepeatType {
+  DAILY
+  CUSTOM
+  TODAY_ONLY
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String        @id @default(cuid())
+  clerkId      String        @unique
+  name         String
+  email        String        @unique
+  reminders    Reminder[]
+  medicineLogs MedicineLog[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("users")
+}
+
+model Reminder {
+  id             String        @id @default(cuid())
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  medicineName   String
+  dosage         String
+  reminderTime   String        // Format: "HH:MM" (24-hour)
+  repeatType     RepeatType    @default(DAILY)
+  repeatDays     String[]      // e.g. ["MON", "WED", "FRI"] — used when repeatType is CUSTOM
+  startDate      DateTime
+  endDate        DateTime?
+  snoozeCount    Int           @default(3)
+  snoozeInterval Int           @default(5) // minutes
+  isCompleted    Boolean       @default(false)
+  medicineLogs   MedicineLog[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([userId, isCompleted])
+  @@map("reminders")
+}
+
+enum TakenVia {
+  swipe
+  alarm_dismiss
+  manual
+}
+
+model MedicineLog {
+  id            String    @id @default(cuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminderId    String?
+  reminder      Reminder? @relation(fields: [reminderId], references: [id], onDelete: SetNull)
+  medicineName  String
+  dosage        String?
+  takenAt       DateTime  @default(now())
+  takenVia      TakenVia
+  scheduledTime String    // Format: "HH:MM"
+  createdAt     DateTime  @default(now())
+
+  @@index([userId])
+  @@index([reminderId])
+  @@map("medicine_logs")
+}

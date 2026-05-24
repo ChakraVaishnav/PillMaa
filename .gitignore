@@ -1,0 +1,32 @@
+# Root
+node_modules/
+.env
+.env.local
+.history/
+
+# Backend
+backend/node_modules/
+backend/dist/
+backend/.env
+
+# Mobile
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/.env
+mobile/android/
+mobile/ios/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
