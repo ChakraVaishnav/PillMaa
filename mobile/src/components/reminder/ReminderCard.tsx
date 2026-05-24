@@ -70,62 +70,64 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({
       }}
       containerStyle={styles.swipeableContainer}
     >
-      <View style={[
-        styles.card, 
-        isCompleted ? [styles.cardCompleted, { backgroundColor: theme.background }] : { backgroundColor: theme.card, borderColor: theme.border },
-        { borderLeftColor: isCompleted ? theme.primaryLight : theme.primary }
-      ]}>
-        <TouchableOpacity
-          style={styles.cardInner}
-          onPress={() => onPress(reminder)}
-          activeOpacity={0.9}
-        >
-          {/* Left — Medicine pill icon */}
-          <View style={[
-            styles.pillIcon, 
-            isCompleted ? styles.pillIconCompleted : { backgroundColor: theme.primaryLight, borderColor: theme.primary }
-          ]}>
-            <MaterialCommunityIcons
-              name="pill"
-              size={24}
-              color={isCompleted ? theme.textMuted : theme.primary}
-            />
-          </View>
-
-          {/* Center — Medicine info */}
-          <View style={styles.info}>
-            <View style={styles.nameRow}>
-              <Text
-                style={[styles.medicineName, { color: theme.text }, isCompleted && styles.completedText]}
-                numberOfLines={1}
-              >
-                {reminder.medicineName}
-              </Text>
-              {isCompleted && <Badge label="Taken" variant="success" dot />}
+      <View style={styles.shadowWrapper}>
+        <View style={[
+          styles.card, 
+          isCompleted ? [styles.cardCompleted, { backgroundColor: theme.background }] : { backgroundColor: theme.card, borderColor: theme.border },
+          { borderLeftColor: isCompleted ? theme.primaryLight : theme.primary }
+        ]}>
+          <TouchableOpacity
+            style={styles.cardInner}
+            onPress={() => onPress(reminder)}
+            activeOpacity={0.9}
+          >
+            {/* Left — Medicine pill icon */}
+            <View style={[
+              styles.pillIcon, 
+              isCompleted ? styles.pillIconCompleted : { backgroundColor: theme.primaryLight, borderColor: theme.primary }
+            ]}>
+              <MaterialCommunityIcons
+                name="pill"
+                size={24}
+                color={isCompleted ? theme.textMuted : theme.primary}
+              />
             </View>
 
-            <Text style={[styles.dosage, { color: theme.textMuted }]}>{reminder.dosage}</Text>
+            {/* Center — Medicine info */}
+            <View style={styles.info}>
+              <View style={styles.nameRow}>
+                <Text
+                  style={[styles.medicineName, { color: theme.text }, isCompleted && styles.completedText]}
+                  numberOfLines={1}
+                >
+                  {reminder.medicineName}
+                </Text>
+                {isCompleted && <Badge label="Taken" variant="success" dot />}
+              </View>
 
-            <View style={styles.metaRow}>
-              <Feather name="clock" size={12} color={theme.textMuted} style={{ marginRight: 2 }} />
-              <Text style={[styles.meta, { color: theme.textMuted }]}>
-                {formatReminderTime(reminder.reminderTime)}
-              </Text>
-              <View style={[styles.dot, { backgroundColor: theme.border }]} />
-              <Text style={[styles.meta, { color: theme.textMuted }]}>
-                {formatRepeatInfo(reminder.repeatType, reminder.repeatDays)}
-              </Text>
-            </View>
-          </View>
+              <Text style={[styles.dosage, { color: theme.textMuted }]}>{reminder.dosage}</Text>
 
-          {/* Right — Snooze info */}
-          {reminder.snoozeCount > 0 && !isCompleted && (
-            <View style={styles.snoozeInfo}>
-              <Text style={[styles.snoozeCount, { color: theme.primary }]}>{reminder.snoozeCount}x</Text>
-              <Text style={[styles.snoozeLabel, { color: theme.textMuted }]}>snooze</Text>
+              <View style={styles.metaRow}>
+                <Feather name="clock" size={12} color={theme.textMuted} style={{ marginRight: 2 }} />
+                <Text style={[styles.meta, { color: theme.textMuted }]}>
+                  {formatReminderTime(reminder.reminderTime)}
+                </Text>
+                <View style={[styles.dot, { backgroundColor: theme.border }]} />
+                <Text style={[styles.meta, { color: theme.textMuted }]}>
+                  {formatRepeatInfo(reminder.repeatType, reminder.repeatDays)}
+                </Text>
+              </View>
             </View>
-          )}
-        </TouchableOpacity>
+
+            {/* Right — Snooze info */}
+            {reminder.snoozeCount > 0 && !isCompleted && (
+              <View style={styles.snoozeInfo}>
+                <Text style={[styles.snoozeCount, { color: theme.primary }]}>{reminder.snoozeCount}x</Text>
+                <Text style={[styles.snoozeLabel, { color: theme.textMuted }]}>snooze</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     </Swipeable>
   );
@@ -133,9 +135,13 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({
 
 const styles = StyleSheet.create({
   swipeableContainer: {
-    borderRadius: 16,
+    backgroundColor: 'transparent',
     marginBottom: 12,
+  },
+  shadowWrapper: {
     ...Shadows.card,
+    borderRadius: 16,
+    backgroundColor: 'transparent',
   },
   leftActionContainer: {
     flex: 1,
