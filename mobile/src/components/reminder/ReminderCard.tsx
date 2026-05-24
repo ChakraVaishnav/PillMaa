@@ -73,7 +73,7 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({
       <View style={styles.shadowWrapper}>
         <View style={[
           styles.card, 
-          isCompleted ? [styles.cardCompleted, { backgroundColor: theme.background }] : { backgroundColor: theme.card, borderColor: theme.border },
+          { backgroundColor: theme.card, borderColor: theme.border },
           { borderLeftColor: isCompleted ? theme.primaryLight : theme.primary }
         ]}>
           <TouchableOpacity
@@ -84,7 +84,9 @@ export const ReminderCard: React.FC<ReminderCardProps> = ({
             {/* Left — Medicine pill icon */}
             <View style={[
               styles.pillIcon, 
-              isCompleted ? styles.pillIconCompleted : { backgroundColor: theme.primaryLight, borderColor: theme.primary }
+              isCompleted 
+                ? { backgroundColor: theme.background, borderColor: theme.border } 
+                : { backgroundColor: theme.primaryLight, borderColor: theme.primary }
             ]}>
               <MaterialCommunityIcons
                 name="pill"
@@ -167,10 +169,6 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4, // Left colored border accent
     overflow: 'hidden',
   },
-  cardCompleted: {
-    backgroundColor: '#f9fafb',
-    opacity: 0.85,
-  },
   cardInner: {
     flexDirection: 'row',
     alignItems:    'center',
@@ -186,10 +184,6 @@ const styles = StyleSheet.create({
     justifyContent:  'center',
     borderWidth:     1.5,
     borderColor:     Colors.primary[100],
-  },
-  pillIconCompleted: {
-    backgroundColor: Colors.neutral[100],
-    borderColor:     Colors.neutral[200],
   },
   info: {
     flex: 1,
