@@ -109,7 +109,7 @@ export default function DashboardScreen() {
         if (Platform.OS === 'android') {
           Alert.alert(
             "🔔 Enable Reliable Reminders",
-            "To make sure you never miss your medicine reminders (even when your phone is locked or asleep), PillMaa needs permission to run in the background without battery restrictions.\n\nWould you like to enable this now?",
+            "To make sure you never miss your medicine reminders (even when your phone is locked or asleep), PillMaa needs permission to run in the background without battery restrictions.\n\nWe will open settings for you. Please tap 'Battery' and select 'Unrestricted' (or 'Don't Optimize').",
             [
               {
                 text: "Later",
@@ -119,7 +119,7 @@ export default function DashboardScreen() {
                 style: "cancel"
               },
               {
-                text: "Enable Now",
+                text: "Open Settings",
                 onPress: async () => {
                   await AsyncStorage.setItem('hasAskedPermissionsDashboard', 'true');
                   const { requestIgnoreBatteryOptimizations } = require('../../src/utils/powerManager');
