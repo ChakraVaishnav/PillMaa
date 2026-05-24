@@ -30,6 +30,7 @@ import { REPEAT_TYPES } from '../../src/constants';
 import { useUpdateReminder, useDeleteReminder } from '../../src/hooks/useReminders';
 import { useReminderStore } from '../../src/store/useReminderStore';
 import { formatReminderTime } from '../../src/utils/dateHelpers';
+import { scheduleReminderNotification, rescheduleAllReminders } from '../../src/utils/notifications';
 import type { RepeatDay, RepeatType } from '../../src/types';
 import { format } from 'date-fns';
 import { useTheme } from '../../src/context/ThemeContext';
@@ -76,7 +77,7 @@ export default function EditReminderScreen() {
   const onSubmit = async (data: FormData) => {
     if (!id) return;
     try {
-      await updateReminder({
+      const updated = await updateReminder({
         id,
         payload: {
           ...data,
@@ -85,6 +86,15 @@ export default function EditReminderScreen() {
           repeatDays: data.repeatDays as RepeatDay[],
         },
       });
+
+      // Cancel old notification + re-schedule with updated time/days
+      try {
+        const allReminders = useReminderStore.getState().reminders;
+        await rescheduleAllReminders(allReminders);
+      } catch (err) {
+        console.warn('[Edit] Failed to reschedule notifications:', err);
+      }
+
       router.back();
     } catch (error: any) {
       console.warn('[Edit] Update failed:', error);

@@ -23,8 +23,9 @@ import { useTabBar } from '../src/context/TabBarContext';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { AuthService } from '../src/services/auth.service';
+import * as Notifications from 'expo-notifications';
 import { cancelAllNotifications } from '../src/utils/notifications';
-import { requestIgnoreBatteryOptimizations } from '../src/utils/powerManager';
+import { requestIgnoreBatteryOptimizations, requestDrawOverAppsPermission } from '../src/utils/powerManager';
 import { useReminderStore } from '../src/store/useReminderStore';
 import { Typography } from '../src/theme/typography';
 import { Shadows } from '../src/theme/shadows';
@@ -188,8 +189,9 @@ export const SettingsScreen: React.FC = () => {
           <>
             <Text style={[styles.groupLabel, { color: theme.textMuted }]}>Notifications</Text>
             <Card style={{ ...styles.groupCard, backgroundColor: theme.card, borderColor: batteryDenied ? '#fcd34d' : theme.border }} padding={0}>
+              {/* Row 1: Battery Optimization */}
               <TouchableOpacity
-                style={styles.settingRow}
+                style={[styles.settingRow, { borderBottomWidth: 1, borderBottomColor: theme.border }]}
                 onPress={async () => {
                   await requestIgnoreBatteryOptimizations();
                   await AsyncStorage.setItem('batteryOptimizationDenied', 'false');
@@ -218,6 +220,79 @@ export const SettingsScreen: React.FC = () => {
                   </View>
                 </View>
                 <Feather name="chevron-right" size={18} color={batteryDenied ? '#f59e0b' : theme.textMuted} />
+              </TouchableOpacity>
+
+              {/* Row 2: Draw Over Other Apps */}
+              <TouchableOpacity
+                style={styles.settingRow}
+                onPress={async () => {
+                  await requestDrawOverAppsPermission();
+                  Toast.show({
+                    type: 'success',
+                    text1: 'Display Permission Opened',
+                    text2: 'Enable to allow full-screen alarm overlays.',
+                  });
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.rowLeft}>
+                  <View style={[styles.iconBox, { backgroundColor: theme.primaryLight }]}>
+                    <Ionicons name="phone-portrait-outline" size={18} color={theme.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.rowLabel, { color: theme.text }]}>Display over other apps</Text>
+                    <Text style={[styles.rowSubLabel, { color: theme.textMuted }]}>
+                      Required for full-screen alarm popup
+                    </Text>
+                  </View>
+                </View>
+                <Feather name="chevron-right" size={18} color={theme.textMuted} />
+              </TouchableOpacity>
+
+              {/* Row 3: Test Notification */}
+              <TouchableOpacity
+                style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: theme.border }]}
+                onPress={async () => {
+                  try {
+                    await Notifications.scheduleNotificationAsync({
+                      content: {
+                        title: '🔔 Test Notification',
+                        body: 'If you see this, notifications are working!',
+                        data: { type: 'TEST' },
+                        sound: Platform.OS === 'android' ? true : 'alarm.wav',
+                        priority: Notifications.AndroidNotificationPriority.MAX,
+                      },
+                      trigger: {
+                        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                        seconds: 5,
+                        ...(Platform.OS === 'android' && {
+                          channelId: 'pillmaa-reminders',
+                        }),
+                      },
+                    });
+                    Toast.show({
+                      type: 'info',
+                      text1: 'Test Scheduled',
+                      text2: 'Wait 5 seconds for the notification...',
+                    });
+                  } catch (err: any) {
+                    Alert.alert('Test Failed', err?.message || 'Unknown error');
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.rowLeft}>
+                  <View style={[styles.iconBox, { backgroundColor: '#dbeafe' }]}>
+                    <Ionicons name="notifications-outline" size={18} color="#2563eb" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.rowLabel, { color: theme.text }]}>Test Notification</Text>
+                    <Text style={[styles.rowSubLabel, { color: theme.textMuted }]}>
+                      Sends a test alert in 5 seconds
+                    </Text>
+                  </View>
+                </View>
+                <Feather name="chevron-right" size={18} color={theme.textMuted} />
               </TouchableOpacity>
             </Card>
           </>

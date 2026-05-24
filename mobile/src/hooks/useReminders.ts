@@ -2,10 +2,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ReminderService } from '../services/reminder.service';
 import { useReminderStore } from '../store/useReminderStore';
+import { rescheduleAllReminders } from '../utils/notifications';
 import type { Reminder, CreateReminderPayload, UpdateReminderPayload } from '../types';
 import { format } from 'date-fns';
 
 const REMINDERS_KEY = ['reminders'] as const;
+
+// Track whether we've done the first reschedule this session
+let hasRescheduledThisSession = false;
 
 export function useReminders() {
   const setReminders = useReminderStore((s) => s.setReminders);
@@ -15,6 +19,16 @@ export function useReminders() {
     queryFn: async () => {
       const reminders = await ReminderService.getAll();
       setReminders(reminders);
+
+      // On the FIRST fetch each session, reschedule all local notifications.
+      // This restores notifications after reinstall, OS reboot, or clearing.
+      if (!hasRescheduledThisSession && reminders.length > 0) {
+        hasRescheduledThisSession = true;
+        rescheduleAllReminders(reminders).catch((err) =>
+          console.warn('[useReminders] Reschedule failed:', err)
+        );
+      }
+
       return reminders;
     },
   });

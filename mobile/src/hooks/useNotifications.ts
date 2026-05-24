@@ -2,12 +2,14 @@
 import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useRouter } from 'expo-router';
-import { Platform, AppState, AppStateStatus } from 'react-native';
+import { Platform } from 'react-native';
 import {
   requestNotificationPermissions,
   createNotificationChannel,
+  rescheduleAllReminders,
 } from '../utils/notifications';
 import { registerBackgroundNotificationTask } from '../tasks/backgroundNotificationTask';
+import { useReminderStore } from '../store/useReminderStore';
 
 /**
  * Navigates to the full-screen alarm screen with the given notification data.
@@ -50,6 +52,13 @@ export function useNotificationSetup() {
       // when a notification arrives while the app is backgrounded/killed
       if (Platform.OS === 'android') {
         await registerBackgroundNotificationTask();
+      }
+
+      // Re-schedule ALL reminders from store on every app startup.
+      // This restores notifications after reinstall, reboot, or OS clearing them.
+      const reminders = useReminderStore.getState().reminders;
+      if (reminders.length > 0) {
+        await rescheduleAllReminders(reminders);
       }
     };
 

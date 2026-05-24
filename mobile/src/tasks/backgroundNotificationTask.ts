@@ -18,7 +18,7 @@ export const BACKGROUND_NOTIFICATION_TASK = 'BACKGROUND_NOTIFICATION_TASK';
  *   1. The notification response listener (user taps the notification banner)
  *   2. getLastNotificationResponseAsync() checked on app resume/launch
  */
-TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, ({ data, error }) => {
+TaskManager.defineTask(BACKGROUND_NOTIFICATION_TASK, async ({ data, error }) => {
   if (error) {
     console.warn('[BackgroundNotificationTask] Error:', error);
     return;

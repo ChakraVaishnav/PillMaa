@@ -80,6 +80,23 @@ export async function createNotificationChannel(): Promise<void> {
 }
 
 /**
+ * Returns the next valid trigger Date for a given "HH:MM" time.
+ * If the time has already passed today, schedules for tomorrow.
+ */
+function getNextTriggerDate(time: string): Date {
+  const [hours, minutes] = time.split(':').map(Number);
+  const now = new Date();
+  const trigger = new Date();
+  trigger.setHours(hours, minutes, 0, 0);
+
+  // If the time has already passed today, push to tomorrow
+  if (trigger <= now) {
+    trigger.setDate(trigger.getDate() + 1);
+  }
+  return trigger;
+}
+
+/**
  * Schedules a local notification for a reminder.
  * Returns the notification identifier.
  */
@@ -88,17 +105,38 @@ export async function scheduleReminderNotification(
 ): Promise<string> {
   const [hours, minutes] = reminder.reminderTime.split(':').map(Number);
 
-  const trigger: Notifications.NotificationTriggerInput =
-    reminder.repeatType === 'TODAY_ONLY'
-      ? {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: buildDateAtTime(reminder.reminderTime),
-        }
-      : {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
-          hour: hours,
-          minute: minutes,
-        };
+  let trigger: Notifications.NotificationTriggerInput;
+
+  if (reminder.repeatType === 'TODAY_ONLY') {
+    // Schedule once at the correct time — if already passed today, skip
+    const triggerDate = getNextTriggerDate(reminder.reminderTime);
+    const isAlreadyPast = buildDateAtTime(reminder.reminderTime) < new Date();
+    if (isAlreadyPast) {
+      console.warn(`[Notifications] Reminder time ${reminder.reminderTime} has already passed today. Skipping TODAY_ONLY reminder.`);
+      // Return a sentinel value — don't schedule a dead notification
+      return '';
+    }
+    trigger = {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: triggerDate,
+    };
+  } else if (reminder.repeatType === 'DAILY' || reminder.repeatType === 'CUSTOM') {
+    // For both DAILY and CUSTOM, use a DAILY trigger.
+    // CUSTOM day filtering is handled by checking in the notification handler
+    // (we schedule every day and suppress if not active on that day — simplest approach
+    //  that works reliably with expo-notifications which has no "weekday" trigger type)
+    trigger = {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: hours,
+      minute: minutes,
+    };
+  } else {
+    trigger = {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: hours,
+      minute: minutes,
+    };
+  }
 
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
@@ -111,18 +149,19 @@ export async function scheduleReminderNotification(
         snoozeCount:    reminder.snoozeCount,
         snoozeInterval: reminder.snoozeInterval,
         type:           'REMINDER',
+        repeatType:     reminder.repeatType,
+        repeatDays:     reminder.repeatDays,
       },
-      sound: 'alarm.wav',
+      sound: Platform.OS === 'android' ? true : 'alarm.wav',
       priority: Notifications.AndroidNotificationPriority.MAX,
-      ...(Platform.OS === 'android' && {
-        channelId: NOTIFICATION_CHANNEL_ID,
-        // Makes the alarm show as a full-screen overlay even when on another app
-        // Requires USE_FULL_SCREEN_INTENT permission (already in app.json)
-      }),
     },
-    trigger,
+    trigger: {
+      ...trigger,
+      ...(Platform.OS === 'android' && { channelId: NOTIFICATION_CHANNEL_ID }),
+    },
   });
 
+  console.log(`[Notifications] Scheduled "${reminder.medicineName}" (${reminder.repeatType}) at ${reminder.reminderTime} → id: ${notificationId}`);
   return notificationId;
 }
 
@@ -133,8 +172,6 @@ export async function scheduleSnoozeNotification(
   reminder: Pick<Reminder, 'id' | 'medicineName' | 'dosage' | 'snoozeCount' | 'snoozeInterval'>,
   remainingSnoozes: number
 ): Promise<string> {
-  const snoozeMs = reminder.snoozeInterval * 60 * 1000;
-
   return Notifications.scheduleNotificationAsync({
     content: {
       title: `🔔 Snooze — ${reminder.medicineName}`,
@@ -147,15 +184,13 @@ export async function scheduleSnoozeNotification(
         snoozeInterval:  reminder.snoozeInterval,
         type:            'SNOOZE',
       },
-      sound: 'alarm.wav',
+      sound: Platform.OS === 'android' ? true : 'alarm.wav',
       priority: Notifications.AndroidNotificationPriority.MAX,
-      ...(Platform.OS === 'android' && {
-        channelId: NOTIFICATION_CHANNEL_ID,
-      }),
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
       seconds: reminder.snoozeInterval * 60,
+      ...(Platform.OS === 'android' && { channelId: NOTIFICATION_CHANNEL_ID }),
     },
   });
 }
@@ -164,6 +199,7 @@ export async function scheduleSnoozeNotification(
  * Cancels a scheduled notification by its ID.
  */
 export async function cancelNotification(notificationId: string): Promise<void> {
+  if (!notificationId) return;
   await Notifications.cancelScheduledNotificationAsync(notificationId);
 }
 
@@ -172,4 +208,34 @@ export async function cancelNotification(notificationId: string): Promise<void> 
  */
 export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
+}
+
+/**
+ * Re-schedules ALL active reminders from the store.
+ * Call this on app startup to restore notifications after reinstall/reboot.
+ */
+export async function rescheduleAllReminders(reminders: Reminder[]): Promise<void> {
+  // Cancel everything first to avoid duplicates
+  await Notifications.cancelAllScheduledNotificationsAsync();
+
+  let scheduled = 0;
+  let skipped = 0;
+
+  for (const reminder of reminders) {
+    // Don't schedule completed or past TODAY_ONLY reminders
+    if (reminder.isCompleted) { skipped++; continue; }
+    if (reminder.repeatType === 'TODAY_ONLY') {
+      const isAlreadyPast = buildDateAtTime(reminder.reminderTime) < new Date();
+      if (isAlreadyPast) { skipped++; continue; }
+    }
+
+    try {
+      await scheduleReminderNotification(reminder);
+      scheduled++;
+    } catch (err) {
+      console.warn(`[Notifications] Failed to reschedule "${reminder.medicineName}":`, err);
+    }
+  }
+
+  console.log(`[Notifications] Rescheduled ${scheduled} reminders, skipped ${skipped}`);
 }
