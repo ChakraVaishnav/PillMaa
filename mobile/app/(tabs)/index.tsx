@@ -24,6 +24,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ReminderCard } from '../../src/components/reminder/ReminderCard';
 import { useReminderStore } from '../../src/store/useReminderStore';
@@ -36,6 +37,7 @@ import { Colors } from '../../src/theme/colors';
 import { Typography } from '../../src/theme/typography';
 import { Shadows } from '../../src/theme/shadows';
 import { getGreeting, isReminderActiveOnDate } from '../../src/utils/dateHelpers';
+import { requestNotificationPermissions } from '../../src/utils/notifications';
 import {
   useReminders,
   useTodayReminders,
@@ -93,6 +95,55 @@ export default function DashboardScreen() {
   const { data: streak = 0 } = useStreak();
   const { data: history = [] } = useHistory();
   const reminders = useReminderStore((s) => s.reminders);
+
+  React.useEffect(() => {
+    const checkAndRequestPermissions = async () => {
+      try {
+        const hasAsked = await AsyncStorage.getItem('hasAskedPermissionsDashboard');
+        if (hasAsked === 'true') return;
+
+        // 1. Request notification permissions first
+        await requestNotificationPermissions();
+
+        // 2. On Android, ask for battery exemption settings so notifications run on-time
+        if (Platform.OS === 'android') {
+          Alert.alert(
+            "🔔 Enable Reliable Reminders",
+            "To make sure you never miss your medicine reminders (even when your phone is locked or asleep), PillMaa needs permission to run in the background without battery restrictions.\n\nWould you like to enable this now?",
+            [
+              {
+                text: "Later",
+                onPress: async () => {
+                  await AsyncStorage.setItem('hasAskedPermissionsDashboard', 'true');
+                },
+                style: "cancel"
+              },
+              {
+                text: "Enable Now",
+                onPress: async () => {
+                  await AsyncStorage.setItem('hasAskedPermissionsDashboard', 'true');
+                  const { requestIgnoreBatteryOptimizations } = require('../../src/utils/powerManager');
+                  await requestIgnoreBatteryOptimizations();
+                }
+              }
+            ],
+            { cancelable: true }
+          );
+        } else {
+          await AsyncStorage.setItem('hasAskedPermissionsDashboard', 'true');
+        }
+      } catch (err) {
+        console.warn('Failed to prompt permissions on dashboard:', err);
+      }
+    };
+
+    // Trigger after a tiny delay so the dashboard renders beautifully first
+    const timer = setTimeout(() => {
+      checkAndRequestPermissions();
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const [confirmModal, setConfirmModal] = React.useState<{
     visible: boolean;
