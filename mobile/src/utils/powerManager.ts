@@ -1,7 +1,9 @@
 // src/utils/powerManager.ts
-import { Linking, Platform } from 'react-native';
+import { Linking, Platform, NativeModules } from 'react-native';
 import * as IntentLauncher from 'expo-intent-launcher';
 import Constants from 'expo-constants';
+
+const { MedicineAlarm } = NativeModules;
 
 const APP_PACKAGE =
   Constants.expoConfig?.android?.package ||
@@ -15,9 +17,10 @@ const APP_PACKAGE =
 export async function isBatteryOptimizationIgnored(): Promise<boolean> {
   if (Platform.OS !== 'android') return true;
   try {
-    // expo-battery doesn't expose this, so we use a heuristic via AsyncStorage flag
-    // The actual check happens via native module if available
-    return false; // Always returns false — we rely on user confirming via AsyncStorage
+    if (MedicineAlarm) {
+      return await MedicineAlarm.isBatteryOptimizationIgnored();
+    }
+    return false;
   } catch {
     return false;
   }
@@ -61,7 +64,14 @@ export async function requestIgnoreBatteryOptimizations(): Promise<boolean> {
  */
 export async function canDrawOverApps(): Promise<boolean> {
   if (Platform.OS !== 'android') return true;
-  return false;
+  try {
+    if (MedicineAlarm) {
+      return await MedicineAlarm.canDrawOverApps();
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 /**

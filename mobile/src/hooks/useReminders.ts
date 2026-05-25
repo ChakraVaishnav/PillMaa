@@ -66,8 +66,10 @@ export function useCreateReminder() {
 
   return useMutation({
     mutationFn: (payload: CreateReminderPayload) => ReminderService.create(payload),
-    onSuccess: (newReminder) => {
+    onSuccess: async (newReminder) => {
       addReminder(newReminder);
+      const updatedReminders = useReminderStore.getState().reminders;
+      await rescheduleAllReminders(updatedReminders);
       qc.invalidateQueries({ queryKey: REMINDERS_KEY });
     },
   });
@@ -80,8 +82,10 @@ export function useUpdateReminder() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: UpdateReminderPayload }) =>
       ReminderService.update(id, payload),
-    onSuccess: (updated) => {
+    onSuccess: async (updated) => {
       updateReminder(updated.id, updated);
+      const updatedReminders = useReminderStore.getState().reminders;
+      await rescheduleAllReminders(updatedReminders);
       qc.invalidateQueries({ queryKey: REMINDERS_KEY });
     },
   });
@@ -92,7 +96,7 @@ export function useMarkComplete() {
   const markComplete = useReminderStore((s) => s.markComplete);
 
   return useMutation({
-    mutationFn: (payload: { id: string; takenVia: 'swipe' | 'alarm_dismiss' | 'manual' }) => 
+    mutationFn: (payload: { id: string; takenVia: 'swipe' | 'alarm_dismiss' | 'manual' }) =>
       ReminderService.markComplete(payload.id, payload.takenVia),
     onMutate: async (payload) => {
       // Cancel outgoing refetches to prevent overwriting
@@ -105,7 +109,7 @@ export function useMarkComplete() {
       if (previousReminders) {
         qc.setQueryData<Reminder[]>(
           REMINDERS_KEY,
-          previousReminders.map((r) => 
+          previousReminders.map((r) =>
             r.id === payload.id ? { ...r, isCompleted: true } : r
           )
         );
@@ -160,7 +164,9 @@ export function useDeleteReminder() {
         qc.setQueryData(REMINDERS_KEY, context.previousReminders);
       }
     },
-    onSettled: () => {
+    onSettled: async () => {
+      const updatedReminders = useReminderStore.getState().reminders;
+      await rescheduleAllReminders(updatedReminders);
       qc.invalidateQueries({ queryKey: REMINDERS_KEY });
       qc.invalidateQueries({ queryKey: ['history'] });
       qc.invalidateQueries({ queryKey: ['streak'] });

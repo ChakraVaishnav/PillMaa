@@ -47,17 +47,6 @@
       "expo-router",
       "expo-font",
       [
-        "expo-notifications",
-        {
-          "icon": "./assets/icons/app_icon.png",
-          "color": "#16A34A",
-          "defaultChannel": "reminders",
-          "sounds": [
-            "./assets/sounds/alarm.wav"
-          ]
-        }
-      ],
-      [
         "expo-av",
         {
           "microphonePermission": false

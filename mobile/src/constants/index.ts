@@ -19,7 +19,7 @@ export const REPEAT_TYPES = [
 
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://192.168.1.37:3000/api/v1';
 
-export const NOTIFICATION_CHANNEL_ID = 'pillmaa-reminders';
+export const NOTIFICATION_CHANNEL_ID = 'reminders';
 export const ALARM_NOTIFICATION_ID_PREFIX = 'alarm_';
 
 export const DEFAULT_SNOOZE_COUNT = 3;

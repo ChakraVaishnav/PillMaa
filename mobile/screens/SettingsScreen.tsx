@@ -23,7 +23,8 @@ import { useTabBar } from '../src/context/TabBarContext';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { AuthService } from '../src/services/auth.service';
-import * as Notifications from 'expo-notifications';
+import * as Linking from 'expo-linking';
+import Constants from 'expo-constants';
 import { cancelAllNotifications } from '../src/utils/notifications';
 import { requestIgnoreBatteryOptimizations, requestDrawOverAppsPermission } from '../src/utils/powerManager';
 import { useReminderStore } from '../src/store/useReminderStore';
@@ -254,27 +255,31 @@ export const SettingsScreen: React.FC = () => {
                 style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: theme.border }]}
                 onPress={async () => {
                   try {
-                    await Notifications.scheduleNotificationAsync({
-                      content: {
-                        title: '🔔 Test Notification',
-                        body: 'If you see this, notifications are working!',
-                        data: { type: 'TEST' },
-                        sound: Platform.OS === 'android' ? true : 'alarm.wav',
-                        priority: Notifications.AndroidNotificationPriority.MAX,
-                      },
-                      trigger: {
-                        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-                        seconds: 5,
-                        ...(Platform.OS === 'android' && {
-                          channelId: 'pillmaa-reminders',
-                        }),
-                      },
-                    });
-                    Toast.show({
-                      type: 'info',
-                      text1: 'Test Scheduled',
-                      text2: 'Wait 5 seconds for the notification...',
-                    });
+                    const { NativeModules } = require('react-native');
+                    const { MedicineAlarm } = NativeModules;
+                    if (Platform.OS === 'android' && MedicineAlarm) {
+                      const triggerTime = Date.now() + 5000; // 5 seconds from now
+                      MedicineAlarm.scheduleAlarm(
+                        'test-alarm',
+                        '🔔 Test Notification',
+                        'If you see this, PillMaa native alarms are working!',
+                        triggerTime,
+                        {
+                          reminderId: 'test-reminder',
+                          medicineName: 'Test Pill',
+                          dosage: '1 Pill',
+                          snoozeCount: '3',
+                          snoozeInterval: '1',
+                        }
+                      );
+                      Toast.show({
+                        type: 'success',
+                        text1: 'Test Scheduled',
+                        text2: 'Lock your screen! Alarm will trigger in 5 seconds.',
+                      });
+                    } else {
+                      Alert.alert('Not Supported', 'Native alarm module is only available on Android');
+                    }
                   } catch (err: any) {
                     Alert.alert('Test Failed', err?.message || 'Unknown error');
                   }
